@@ -1,5 +1,5 @@
 ---
-title: "dbplyr_Tutorial"
+title: "`dbplyr` Package Tutorial"
 format:
   pdf: 
     toc: true
@@ -7,7 +7,7 @@ format:
 
 ## `dbplyr` Package Information
 
-The `dbplyr` package is a user friendly and versatile package that can be used to interact with our `ribbitr` database. This package is a great tool to begin learning how to write SQL statements. `dbplyr` is the database back-end for `dplyr` package which includes many of the user friend functions like `filter()`, `select()`, `mutate()`, and `case_when()`. The `dbplyr` package allows you to use remote database tables as if they are in-memory data frames by automatically converting dplyr code into SQL.
+The `dbplyr` package is a user friendly and versatile package that can be used to interact with our `ribbitr` database. This package is a great tool for interacting with databases using `tidyverse`/`dplyr` syntax. `dbplyr` is the database back-end for the `dplyr` package which includes many of the user friend functions like `filter()`, `select()`, `mutate()`, and `case_when()`. The `dbplyr` package allows you to use remote database tables as if they are in-memory data frames by automatically converting `dplyr` code into SQL.
 
 ## Packages
 
@@ -19,7 +19,7 @@ if (!require(librarian)){
 }
 
 # librarian downloads, if not already downloaded, and reads in needed packages
-librarian::shelf(tidyverse, DBI, RPostgres, dbplyr, kableExtra)
+librarian::shelf(tidyverse, DBI, RPostgres, dbplyr, kableExtra, lubridate)
 
 ```
 
@@ -53,7 +53,7 @@ dbSendQuery(connection, "set search_path = 'survey_data'")
 
 ![](images/schema.png)
 
-Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `region` table onto the `location` table we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `left_join(location, region, by =  c("location_id")`.
+Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `location` table onto the `region` table, we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `left_join(location, region, by =  c("location_id")`.
 
 So now by utilizing the `dbplyr` package, we can apply our understanding of data wrangling within in R and convert those strings of `tidyverse`/`dplyr` commands into `SQL`. Once converted to a `SQL` command we can then send that query to the database.
 
@@ -61,7 +61,7 @@ So now by utilizing the `dbplyr` package, we can apply our understanding of data
 
 Using the `tbl()` functions from the `dbplyr` package stores an in memory version of the table in your local environment. You can then operate on those tables as if they are normal data frames in your RStudio environment.
 
-Just like with all the `DBI` database functions, we must specify the our `connection` to the database and then the table we are interested in storing. When you want to specify a table when using the `dbplyr` package you can think of it always having to be in this format `tbl(connection, "location")`
+Just like with all the `DBI` database functions, we must specify our `connection` to the database and then the table we are interested in storing. When specifying a table using the `dbplyr` package, you can think of it as always being in this format `tbl(connection, "insert_table_name")`
 
 If you want to see the `SQL` query used to retrieve that table you can use `show_query()`.
 
@@ -84,7 +84,7 @@ location_table <- tbl(connection, "location") %>%
 
 kable(location_table) 
 
-# Join `location` table onto `region` table by `location_id`
+# Join `location` table onto `region` table by `location_id` and select columns of interest
 loc_reg <- tbl(connection, "location") %>% 
   left_join(tbl(connection, "region"), by = c("location_id")) %>% 
   select(c(location, region)) %>% 
@@ -94,9 +94,11 @@ loc_reg <- tbl(connection, "location") %>%
 kable(loc_reg) 
 ```
 
+<br>
+
 Now that we know the 3 basic functions, `tbl()`, `show_query()`, and `collect()`, from the `dbplyr` package we can try some more challenging data wrangling.
 
-Columns of interest: `location`, `region`, `site`, `date`, `start_time`, `end_time`, `duration_minutes` , `species_captured`, `body_mass_g`, `svl_mm`, `life_stage`, and `sex`
+Columns of interest: `location`, `region`, `site`, `date`, `start_time`, `end_time`, `duration_minutes`, `species_captured`, `body_mass_g`, `svl_mm`, `life_stage`, and `sex`
 
 ```{r}
 
@@ -108,17 +110,60 @@ in_memory_data <- tbl(connection, "location") %>%
   left_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
   left_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
   select(c(location, region, site, date, start_time, end_time, duration_minutes, 
-           species_capture, body_mass_g, svl_mm, life_stage, sex)) 
+           species_capture, body_mass_g, svl_mm, life_stage, sex))
 
 # Retrieve data
 clean_data <- in_memory_data %>% 
   collect()
-
-kable(clean_data) 
 
 # Show query
 # in_memory_data %>% 
 #   show_query()
 # Note: The method in how `dbplyr` creates the `SQL` query from the in memory data set is not the most efficient query. However, if you ran that query in `dbGetQuery` it would return the same results. 
   
+```
+
+Query Results
+
+```{r}
+# Print first 25 results
+kable(head(clean_data, 25)) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
+```
+
+Now we can run the same query as above but incorporating more data wrangling on the in memory data tables. Lets say we are only interested in organisms greater then 32 mm svl, are heavier then 25 g, who are all adults, are from panama and the usa, and with a date range from 2015 to present. And for fun we also want to convert the svl from mm to cm.
+
+```{r}
+
+# In memory storage of data selection using `tidyverse`/`dplyr` language
+in_memory_data <- tbl(connection, "location") %>% 
+  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  left_join(tbl(connection, "site"), by = c("region_id")) %>% 
+  left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
+  left_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
+  left_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
+  select(c(location, region, site, date, 
+           species_capture, svl_mm, body_mass_g, life_stage, sex)) %>% 
+  filter(location %in% c("panama", "usa"),
+         svl_mm > 32,
+         body_mass_g > 25,
+         life_stage == "adult",
+         date > "2015-01-01") %>% 
+  rename(svl_cm = svl_mm) %>% 
+  mutate(svl_cm = svl_cm / 10)
+
+# Retrieve data
+clean_data <- in_memory_data %>% 
+  collect()
+
+
+
+```
+
+Query Results
+
+```{r}
+# Print first 25 results
+kable(head(clean_data, 25)) %>% 
+  kable_styling(latex_options = c("scale_down", "HOLD_position"))
 ```
