@@ -1,12 +1,13 @@
 ---
 title: "dbplyr_Tutorial"
-format: html
-editor: visual
+format:
+  pdf: 
+    toc: true
 ---
 
-## `dbplyr` Package Infomation
+## `dbplyr` Package Information
 
-The `dbplyr` package is a user friendly and versitille package that can be used to interact with our `ribbitr` database. This package is a great tool to begin learning how to write SQL statements. `dbplyr` is the database backend for `dplyr` package which includes many of the user friend functions like `filter()`, `select()`, `mutate()`, and `case_when()`. The `dbplyr` package allows you to use remote database tables as if they are in-memory data frames by automatically converting dplyr code into SQL.
+The `dbplyr` package is a user friendly and versatile package that can be used to interact with our `ribbitr` database. This package is a great tool to begin learning how to write SQL statements. `dbplyr` is the database back-end for `dplyr` package which includes many of the user friend functions like `filter()`, `select()`, `mutate()`, and `case_when()`. The `dbplyr` package allows you to use remote database tables as if they are in-memory data frames by automatically converting dplyr code into SQL.
 
 ## Packages
 
@@ -18,7 +19,7 @@ if (!require(librarian)){
 }
 
 # librarian downloads, if not already downloaded, and reads in needed packages
-librarian::shelf(tidyverse, DBI, RPostgres, dbplyr)
+librarian::shelf(tidyverse, DBI, RPostgres, dbplyr, kableExtra)
 
 ```
 
@@ -42,6 +43,8 @@ tryCatch({
             print("Unable to connect to Database.")
     })
 
+
+# set search path for 'survey_data' schema
 dbSendQuery(connection, "set search_path = 'survey_data'")
 
 ```
@@ -50,7 +53,72 @@ dbSendQuery(connection, "set search_path = 'survey_data'")
 
 ![](images/schema.png)
 
+Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `region` table onto the `location` table we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `left_join(location, region, by =  c("location_id")`.
+
+So now by utilizing the `dbplyr` package, we can apply our understanding of data wrangling within in R and convert those strings of `tidyverse`/`dplyr` commands into `SQL`. Once converted to a `SQL` command we can then send that query to the database.
+
+## Interacting with `dbplyr`
+
+Using the `tbl()` functions from the `dbplyr` package stores an in memory version of the table in your local environment. You can then operate on those tables as if they are normal data frames in your RStudio environment.
+
+Just like with all the `DBI` database functions, we must specify the our `connection` to the database and then the table we are interested in storing. When you want to specify a table when using the `dbplyr` package you can think of it always having to be in this format `tbl(connection, "location")`
+
+If you want to see the `SQL` query used to retrieve that table you can use `show_query()`.
+
+Now if you want to execute the query and retrieve the data from the database you would use `collect()`
+
 ```{r}
 
+# Storing in memory version of the `location` table
+location_table <- tbl(connection, "location")
 
+
+# Display SQL query
+tbl(connection, "location") %>% 
+  show_query()
+
+
+# Retrieve data from the database
+location_table <- tbl(connection, "location") %>% 
+  collect()
+
+kable(location_table) 
+
+# Join `location` table onto `region` table by `location_id`
+loc_reg <- tbl(connection, "location") %>% 
+  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  select(c(location, region)) %>% 
+  collect()
+  
+
+kable(loc_reg) 
+```
+
+Now that we know the 3 basic functions, `tbl()`, `show_query()`, and `collect()`, from the `dbplyr` package we can try some more challenging data wrangling.
+
+Columns of interest: `location`, `region`, `site`, `date`, `start_time`, `end_time`, `duration_minutes` , `species_captured`, `body_mass_g`, `svl_mm`, `life_stage`, and `sex`
+
+```{r}
+
+# In memory storage of data selection using `tidyverse`/`dplyr` language
+in_memory_data <- tbl(connection, "location") %>% 
+  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  left_join(tbl(connection, "site"), by = c("region_id")) %>% 
+  left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
+  left_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
+  left_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
+  select(c(location, region, site, date, start_time, end_time, duration_minutes, 
+           species_capture, body_mass_g, svl_mm, life_stage, sex)) 
+
+# Retrieve data
+clean_data <- in_memory_data %>% 
+  collect()
+
+kable(clean_data) 
+
+# Show query
+# in_memory_data %>% 
+#   show_query()
+# Note: The method in how `dbplyr` creates the `SQL` query from the in memory data set is not the most efficient query. However, if you ran that query in `dbGetQuery` it would return the same results. 
+  
 ```
