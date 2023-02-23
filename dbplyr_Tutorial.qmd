@@ -1,0 +1,56 @@
+---
+title: "dbplyr_Tutorial"
+format: html
+editor: visual
+---
+
+## `dbplyr` Package Infomation
+
+The `dbplyr` package is a user friendly and versitille package that can be used to interact with our `ribbitr` database. This package is a great tool to begin learning how to write SQL statements. `dbplyr` is the database backend for `dplyr` package which includes many of the user friend functions like `filter()`, `select()`, `mutate()`, and `case_when()`. The `dbplyr` package allows you to use remote database tables as if they are in-memory data frames by automatically converting dplyr code into SQL.
+
+## Packages
+
+```{r}
+
+if (!require(librarian)){
+  install.packages("librarian")
+  library(librarian)
+}
+
+# librarian downloads, if not already downloaded, and reads in needed packages
+librarian::shelf(tidyverse, DBI, RPostgres, dbplyr)
+
+```
+
+## Database Connection
+
+```{r}
+
+tryCatch({
+    drv <- dbDriver("Postgres")
+    print("Connecting to Database…")
+    connection <- dbConnect(drv, 
+                 dbname = Sys.getenv("aws_dbname"),
+                 host = Sys.getenv("aws_host"), 
+                 port = Sys.getenv("aws_port"),
+                 user = Sys.getenv("aws_user"), 
+                 password = Sys.getenv("aws_password"),
+                 timezone=NULL)
+    print("Database Connected!")
+    },
+    error=function(cond) {
+            print("Unable to connect to Database.")
+    })
+
+dbSendQuery(connection, "set search_path = 'survey_data'")
+
+```
+
+## `survey_data` Schema
+
+![](images/schema.png)
+
+```{r}
+
+
+```
