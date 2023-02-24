@@ -1,9 +1,25 @@
 ---
 title: "`dbplyr` Package Tutorial"
+author: "Jake Eisaguirre"
 format:
   pdf: 
     toc: true
+header-includes: 
+ - \usepackage{indentfirst}
+ - \usepackage{graphicx}
+ - \usepackage{fancyhdr}
+ - \pagestyle{fancy}
+ - \renewcommand{\headrulewidth}{0.3pt}
+ - \renewcommand{\footrulewidth}{0.3pt}
 ---
+
+\thispagestyle{fancy}
+\fancyhead[HR]{\includegraphics[width=1.75cm]{nsf_logo.png}}
+\fancyhead[HL]{\includegraphics[width=2cm]{ribbitr.png}}
+\setlength{\headheight}{45pt}
+\setlength{\footheight}{45pt}
+
+\newpage
 
 ## `dbplyr` Package Information
 
@@ -12,64 +28,68 @@ The `dbplyr` package is a user friendly and versatile package that can be used t
 ## Packages
 
 ```{r}
-
+#| results: false
+#| message: false
 if (!require(librarian)){
   install.packages("librarian")
   library(librarian)
 }
 
 # librarian downloads, if not already downloaded, and reads in needed packages
-librarian::shelf(tidyverse, DBI, RPostgres, dbplyr, kableExtra, lubridate)
+librarian::shelf(tidyverse, DBI, RPostgres, dbplyr, kableExtra)
 
 ```
 
 ## Database Connection
 
-```{r}
+Please see [Data Base Connection Tutorial](https://drive.google.com/drive/folders/1FVCws0ar4IWipEr8mvgyYGiBUVvYBMHn) or reach out to me for more guidance on connecting to our `ribbitr` database.
 
+```{r}
+#| results: false
+#| message: false
 tryCatch({
-    drv <- dbDriver("Postgres")
     print("Connecting to Database…")
-    connection <- dbConnect(drv, 
-                 dbname = Sys.getenv("aws_dbname"),
-                 host = Sys.getenv("aws_host"), 
-                 port = Sys.getenv("aws_port"),
-                 user = Sys.getenv("aws_user"), 
-                 password = Sys.getenv("aws_password"),
-                 timezone=NULL)
+    connection <- dbConnect(drv = dbDriver("Postgres"), 
+                            dbname = Sys.getenv("aws_dbname"),
+                            host = Sys.getenv("aws_host"), 
+                            port = Sys.getenv("aws_port"),
+                            user = Sys.getenv("aws_user"), 
+                            password = Sys.getenv("aws_password"),
+                            timezone=NULL)
     print("Database Connected!")
     },
     error=function(cond) {
-            print("Unable to connect to Database.")
-    })
-
-
+            print("Unable to connect to Database.")})
 # set search path for 'survey_data' schema
 dbSendQuery(connection, "set search_path = 'survey_data'")
-
 ```
+
+\newpage
 
 ## `survey_data` Schema
 
 ![](images/schema.png)
 
+</br>
+
 Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `location` table onto the `region` table, we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `left_join(location, region, by =  c("location_id")`.
 
-So now by utilizing the `dbplyr` package, we can apply our understanding of data wrangling within in R and convert those strings of `tidyverse`/`dplyr` commands into `SQL`. Once converted to a `SQL` command we can then send that query to the database.
+So now by utilizing the `dbplyr` package, we can apply our understanding of data wrangling within R and convert those strings of `tidyverse`/`dplyr` commands into `SQL`. Once converted to a `SQL` command we can then send that query to the database.
+
+\newpage
 
 ## Interacting with `dbplyr`
 
-Using the `tbl()` functions from the `dbplyr` package stores an in memory version of the table in your local environment. You can then operate on those tables as if they are normal data frames in your RStudio environment.
+Using the `tbl()` functions from the `dbplyr` package stores a database version of the table in your local environment. You can then operate on those tables as if they are normal data frames in your RStudio environment.
 
-Just like with all the `DBI` database functions, we must specify our `connection` to the database and then the table we are interested in storing. When specifying a table using the `dbplyr` package, you can think of it as always being in this format `tbl(connection, "insert_table_name")`
+Just like with all the `DBI` database functions, we must specify our `connection` to the database and then the table we are interested in storing. When specifying a table using the `dbplyr` package, you can think of it as always being in this format `tbl(connection, "insert_table_name")`.
 
 If you want to see the `SQL` query used to retrieve that table you can use `show_query()`.
 
-Now if you want to execute the query and retrieve the data from the database you would use `collect()`
+Now if you want to execute the query and retrieve the data from the database you would use `collect()`.
 
 ```{r}
-
-# Storing in memory version of the `location` table
+# Storing a database version table in memory of the `location` table
 location_table <- tbl(connection, "location")
 
 
@@ -82,19 +102,33 @@ tbl(connection, "location") %>%
 location_table <- tbl(connection, "location") %>% 
   collect()
 
-kable(location_table) 
+```
 
-# Join `location` table onto `region` table by `location_id` and select columns of interest
+```{r}
+#| echo: false
+kable(location_table) 
+```
+
+$~$
+\newpage
+```{r}
+
+# Join `location` table onto `region` table by `location_id` and select columns 
+# of interest
 loc_reg <- tbl(connection, "location") %>% 
   left_join(tbl(connection, "region"), by = c("location_id")) %>% 
   select(c(location, region)) %>% 
   collect()
   
 
+```
+
+```{r}
+#| echo: false
 kable(loc_reg) 
 ```
 
-<br>
+\newpage
 
 Now that we know the 3 basic functions, `tbl()`, `show_query()`, and `collect()`, from the `dbplyr` package we can try some more challenging data wrangling.
 
@@ -102,8 +136,8 @@ Columns of interest: `location`, `region`, `site`, `date`, `start_time`, `end_ti
 
 ```{r}
 
-# In memory storage of data selection using `tidyverse`/`dplyr` language
-in_memory_data <- tbl(connection, "location") %>% 
+# Database version table in memory using `tidyverse`/`dplyr` language
+db_data <- tbl(connection, "location") %>% 
   left_join(tbl(connection, "region"), by = c("location_id")) %>% 
   left_join(tbl(connection, "site"), by = c("region_id")) %>% 
   left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
@@ -113,30 +147,33 @@ in_memory_data <- tbl(connection, "location") %>%
            species_capture, body_mass_g, svl_mm, life_stage, sex))
 
 # Retrieve data
-clean_data <- in_memory_data %>% 
+clean_data <- db_data %>% 
   collect()
 
 # Show query
 # in_memory_data %>% 
 #   show_query()
-# Note: The method in how `dbplyr` creates the `SQL` query from the in memory data set is not the most efficient query. However, if you ran that query in `dbGetQuery` it would return the same results. 
+
+# Note: The method in how `dbplyr` creates the `SQL` query from the in memory data set 
+# is not the most efficient query. However, if you ran that query in `dbGetQuery` it would 
+# return the same results. 
   
 ```
 
-Query Results
-
 ```{r}
+#| echo: false
 # Print first 25 results
 kable(head(clean_data, 25)) %>% 
   kable_styling(latex_options = c("scale_down", "HOLD_position"))
 ```
 
-Now we can run the same query as above but incorporating more data wrangling on the in memory data tables. Lets say we are only interested in organisms greater then 32 mm svl, are heavier then 25 g, who are all adults, are from panama and the usa, and with a date range from 2015 to present. And for fun we also want to convert the svl from mm to cm.
+
+Now we can run the same query as above but incorporating more data wrangling on the database version of the tables. Lets say we are only interested in organisms greater then 32 mm svl, are heavier then 25 g, who are all adults, are from panama and the usa, and with a date range from 2015 to present. And for fun we also want to convert the svl from mm to cm.
 
 ```{r}
 
 # In memory storage of data selection using `tidyverse`/`dplyr` language
-in_memory_data <- tbl(connection, "location") %>% 
+db_data <- tbl(connection, "location") %>% 
   left_join(tbl(connection, "region"), by = c("location_id")) %>% 
   left_join(tbl(connection, "site"), by = c("region_id")) %>% 
   left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
@@ -153,17 +190,17 @@ in_memory_data <- tbl(connection, "location") %>%
   mutate(svl_cm = svl_cm / 10)
 
 # Retrieve data
-clean_data <- in_memory_data %>% 
+clean_data <- db_data %>% 
   collect()
 
 
 
 ```
 
-Query Results
 
 ```{r}
+#| echo: false
 # Print first 25 results
-kable(head(clean_data, 25)) %>% 
+kable(head(clean_data, 20)) %>% 
   kable_styling(latex_options = c("scale_down", "HOLD_position"))
 ```
