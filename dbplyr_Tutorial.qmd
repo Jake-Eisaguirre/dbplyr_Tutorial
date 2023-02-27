@@ -61,7 +61,7 @@ tryCatch({
     error=function(cond) {
             print("Unable to connect to Database.")})
 # set search path for 'survey_data' schema
-dbSendQuery(connection, "set search_path = 'survey_data'")
+dbExecute(connection, "set search_path = 'survey_data'")
 ```
 
 \newpage
