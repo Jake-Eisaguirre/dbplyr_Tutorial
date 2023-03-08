@@ -72,7 +72,7 @@ dbExecute(connection, "set search_path = 'survey_data'")
 
 </br>
 
-Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `location` table onto the `region` table, we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `left_join(location, region, by =  c("location_id")`.
+Now if you remember from previous database discussions, we know that most of the tables can be joined onto one another through what is called a `primary key` and `foreign key`. For instance, if we want to join the `location` table onto the `region` table, we would join the `location` tables `primary key`, which is called `location_id`, onto the `region` tables `foreign key`, which is also called `location_id`. In R, that would look something like this, `inner_join(location, region, by =  c("location_id")`.
 
 So now by utilizing the `dbplyr` package, we can apply our understanding of data wrangling within R and convert those strings of `tidyverse`/`dplyr` commands into `SQL`. Once converted to a `SQL` command we can then send that query to the database.
 
@@ -116,7 +116,7 @@ $~$
 # Join `location` table onto `region` table by `location_id` and select columns 
 # of interest
 loc_reg <- tbl(connection, "location") %>% 
-  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  inner_join(tbl(connection, "region"), by = c("location_id")) %>% 
   select(c(location, region)) %>% 
   collect()
   
@@ -138,11 +138,11 @@ Columns of interest: `location`, `region`, `site`, `date`, `start_time`, `end_ti
 
 # Database version table in memory using `tidyverse`/`dplyr` language
 db_data <- tbl(connection, "location") %>% 
-  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
-  left_join(tbl(connection, "site"), by = c("region_id")) %>% 
-  left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
-  left_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
-  left_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
+  inner_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  inner_join(tbl(connection, "site"), by = c("region_id")) %>% 
+  inner_join(tbl(connection, "visit"), by = c("site_id")) %>% 
+  inner_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
+  inner_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
   select(c(location, region, site, date, start_time, end_time, duration_minutes, 
            species_capture, body_mass_g, svl_mm, life_stage, sex))
 
@@ -174,11 +174,11 @@ Now we can run the same query as above but incorporating more data wrangling on 
 
 # In memory storage of data selection using `tidyverse`/`dplyr` language
 db_data <- tbl(connection, "location") %>% 
-  left_join(tbl(connection, "region"), by = c("location_id")) %>% 
-  left_join(tbl(connection, "site"), by = c("region_id")) %>% 
-  left_join(tbl(connection, "visit"), by = c("site_id")) %>% 
-  left_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
-  left_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
+  inner_join(tbl(connection, "region"), by = c("location_id")) %>% 
+  inner_join(tbl(connection, "site"), by = c("region_id")) %>% 
+  inner_join(tbl(connection, "visit"), by = c("site_id")) %>% 
+  inner_join(tbl(connection, "survey"), by = c("visit_id")) %>% 
+  inner_join(tbl(connection, "capture"), by = c("survey_id")) %>% 
   select(c(location, region, site, date, 
            species_capture, svl_mm, body_mass_g, life_stage, sex)) %>% 
   filter(location %in% c("panama", "usa"),
